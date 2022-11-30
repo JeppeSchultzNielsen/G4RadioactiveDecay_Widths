@@ -45,4 +45,11 @@ G4NuclearDecay::G4NuclearDecay(const G4String& channelName,
 G4NuclearDecay::~G4NuclearDecay()
 {}
 
-
+G4double G4NuclearDecay::GetNeutronPenetrability(G4double E, G4double A1, G4double A2, G4int l){
+    G4double x = 1.4 * std::sqrt(2.*(A1*A2)/(A1+A2)*931502*E*1000)*(pow(A1,1./3.) + pow(A2,1./3.))/197329.;
+    if(l == 0){return 1;}
+    if(l == 1){return x*x/(1.+x*x);}
+    if(l == 2){return std::pow(x,4)/(9.+3.*std::pow(x,3)+std::pow(x,4)); }
+    if(l > 3){return std::pow(x,6)/(225.+45.*std::pow(x,2)+6*std::pow(x,4) + std::pow(x,6)); }
+    else return -1;
+}

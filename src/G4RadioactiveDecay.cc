@@ -74,6 +74,7 @@
 #include "G4Alpha.hh"
 #include "G4Triton.hh"
 #include "G4Proton.hh"
+#include "G4BDNeutronDecay.hh"
 
 #include "G4HadronicProcessType.hh"
 #include "G4HadronicProcessStore.hh"
@@ -561,7 +562,7 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
       modeSumBR[i] = 0.0;
     }
 
-    char inputChars[120]={' '};
+    char inputChars[220]={' '};
     G4String inputLine;
     G4String recordType("");
     G4String floatingFlag("");
@@ -575,6 +576,13 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
     G4double c(0.0);
     G4double dummy(0.0);
     G4BetaDecayType betaType(allowed);
+    G4double resonance1(0.0);
+    G4double width1(0.0);
+    G4int l1(0);
+    G4double resonance2(0.0);
+    G4double width2(0.0);
+    G4int l2(0);
+    G4double endpointExcitation(0.0);
 
     // Loop through each data file record until you identify the decay
     // data relating to the nuclide of concern.
@@ -582,7 +590,7 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
     G4bool complete(false);  // bool insures only one set of values read for any
                              // given parent energy level
     G4int loop = 0;
-    while (!complete && !DecaySchemeFile.getline(inputChars, 120).eof()) {  /* Loop checking, 01.09.2015, D.Wright */
+    while (!complete && !DecaySchemeFile.getline(inputChars, 220).eof()) {  /* Loop checking, 01.09.2015, D.Wright */
       loop++;
       if (loop > 100000) {
         G4Exception("G4RadioactiveDecay::LoadDecayTable()", "HAD_RDM_100",
@@ -655,7 +663,7 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
               case BDProton:
                 /* Not yet implemented */  break;
               case BDNeutron:
-                /* Not yet implemented */  break;
+                  modeTotalBR[BDNeutron] = decayModeTotal; break;
               case Beta2Minus:
                 /* Not yet implemented */  break;
               case Beta2Plus:
@@ -678,7 +686,8 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
               tmpStream >> theDecayMode >> a >> daughterFloatFlag >> b >> c;
               betaType = allowed;
             } else {
-              tmpStream >> theDecayMode >> a >> daughterFloatFlag >> b >> c >> betaType;
+              tmpStream >> theDecayMode >> a >> daughterFloatFlag >> b >> c >> betaType >> resonance1
+              >> width1 >> l1 >> resonance2 >> width2 >> l2 >> endpointExcitation;
             }
 
             // Allowed transitions are the default. Forbidden transitions are
@@ -686,6 +695,11 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
             a /= 1000.;
             c /= 1000.;
             b /= 100.;
+            width1 /= 1000.;
+              width2 /= 1000.;
+              resonance1 /= 1000.;
+              resonance2 /= 1000.;
+              endpointExcitation /= 1000.;
             daughterFloatLevel = G4Ions::FloatLevelBase(daughterFloatFlag.back());
 
             switch (theDecayMode) {
@@ -818,8 +832,15 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
                   break;
 
               case BDNeutron:
-                  // Not yet implemented
-                  // G4cout << " beta-delayed neutron decay, a = " << a << ", b = " << b << ", c = " << c << G4endl;
+              {
+                  G4BDNeutronDecay* aBDNeutronChannel =
+                          new G4BDNeutronDecay(&theParentNucleus, b, c*MeV, a*MeV,
+                                        daughterFloatLevel, betaType, resonance1, width1, l1, endpointExcitation);
+//              aBetaMinusChannel->DumpNuclearInfo();
+//                aBetaMinusChannel->SetHLThreshold(halflifethreshold);
+                  theDecayTable->Insert(aBDNeutronChannel);
+                  modeSumBR[BDNeutron] += b;
+              }
                   break;
 
               case Beta2Minus:
@@ -853,6 +874,7 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
                     modeSumBR[Triton] += b;
                 }
               break;
+                    break;
 
               case RDM_ERROR:
 

@@ -25,54 +25,50 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
-//  File:   G4NuclearDecay.hh                                                 //
+//  File:   G4BetaMinusDecay.hh                                               //
 //  Author: D.H. Wright (SLAC)                                                //
-//  Date:   11 December 2014                                                  //
-//  Description: base class for all radioactive decay channels                // 
+//  Date:   25 October 2014                                                   //
+//  Description: performs beta- decay of radioactive nuclei, and returns      //
+//               daughter particles in rest frame of parent nucleus           //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef G4NuclearDecay_h
-#define G4NuclearDecay_h 1
+#ifndef G4BDNeutronDecay_h
+#define G4BDNeutronDecay_h 1
 
-#include "G4VDecayChannel.hh"
-#include "G4RadioactiveDecayMode.hh"
-#include "G4IonTable.hh"
+#include "G4NuclearDecay.hh"
+#include "G4BetaDecayType.hh"
+#include "Randomize.hh"
 
 
-class G4NuclearDecay : public G4VDecayChannel
+class G4BDNeutronDecay : public G4NuclearDecay
 {
-  public:
-    G4NuclearDecay(const G4String& channelName,
-                   const G4RadioactiveDecayMode& mode,
-                   const G4double& excitation,
-                   const G4Ions::G4FloatLevelBase& floatingLevel);
+public:
+    G4BDNeutronDecay(const G4ParticleDefinition* theParentNucleus,
+                     const G4double& theBR, const G4double& endpointE,
+                     const G4double& ex, const G4Ions::G4FloatLevelBase& flb,
+                     const G4BetaDecayType& type,
+                     const G4double aResonance,
+                     const G4double aWidth,
+                     const G4int aL,
+                     const G4double aEndpointExcitation);
 
-    virtual ~G4NuclearDecay();
+    virtual ~G4BDNeutronDecay();
 
-    virtual G4double GetNeutronPenetrability(G4double E, G4double A1, G4double A2, G4int l);
+    virtual G4DecayProducts* DecayIt(G4double);
 
-    G4RadioactiveDecayMode GetDecayMode() {return theMode;}
+    virtual void DumpNuclearInfo();
 
-    G4double GetDaughterExcitation() {return daughterEx;}
+private:
+    void SetUpBetaSpectrumSampler(const G4int& parentZ, const G4int& parentA,
+                                  const G4BetaDecayType& type);
 
-    G4Ions::G4FloatLevelBase GetFloatingLevel() {return floatingLevel;}
-
-    G4ParticleDefinition* GetDaughterNucleus() {return GetDaughter(0);}
-
-    void SetHLThreshold(G4double HLT) {halflifeThreshold = HLT;}
-    G4double GetHLThreshold() {return halflifeThreshold;}
-
-    virtual void DumpNuclearInfo() = 0;
-
-  protected:
-    const G4RadioactiveDecayMode theMode;
-
-  private:
-    // Needed for variance reduction mode
-    const G4double daughterEx;
-    const G4Ions::G4FloatLevelBase floatingLevel;
-    G4double halflifeThreshold;
+    const G4double endpointEnergy;
+    const G4double resonance;
+    const G4double width;
+    const G4int l;
+    const G4double endpointExcitation;
+    G4RandGeneral* spectrumSampler;
 };
 #endif
 
