@@ -50,8 +50,6 @@ class G4NuclearDecay : public G4VDecayChannel
 
     virtual ~G4NuclearDecay();
 
-    virtual G4double GetNeutronPenetrability(G4double E, G4double A1, G4double A2, G4int l);
-
     G4RadioactiveDecayMode GetDecayMode() {return theMode;}
 
     G4double GetDaughterExcitation() {return daughterEx;}
