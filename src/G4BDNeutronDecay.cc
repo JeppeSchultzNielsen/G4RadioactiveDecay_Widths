@@ -46,28 +46,99 @@ G4BDNeutronDecay::G4BDNeutronDecay(const G4ParticleDefinition* theParentNucleus,
                                    const G4double& branch, const G4double& e0,
                                    const G4double& excitationE,
                                    const G4Ions::G4FloatLevelBase& flb,
-                                   const G4BetaDecayType& betaType,
+                                   const G4BetaDecayType& aBetaType,
                                    const G4double aResonance,
                                    const G4double aWidth,
                                    const G4int aL,
                                    const G4double aEndpointExcitation)
         : G4NuclearDecay("beta- decay", BetaMinus, excitationE, flb), endpointEnergy(e0), resonance(aResonance),
-        width(aWidth), l(aL), endpointExcitation(aEndpointExcitation)
+        width(aWidth), l(aL), endpointExcitation(aEndpointExcitation), betaType(aBetaType)
 {
     SetParent(theParentNucleus);  // Store name of parent nucleus, delete G4MT_parent
     SetBR(branch);
 
     SetNumberOfDaughters(4);
-    G4IonTable* theIonTable =
+    theIonTable =
             (G4IonTable*)(G4ParticleTable::GetParticleTable()->GetIonTable());
-    G4int daughterZ = theParentNucleus->GetAtomicNumber() + 1;
-    G4int daughterA = theParentNucleus->GetAtomicMass() - 1;
-    SetDaughter(0, theIonTable->GetIon(daughterZ, daughterA, excitationE, flb) );
+    daughterZ = theParentNucleus->GetAtomicNumber() + 1;
+    daughterA = theParentNucleus->GetAtomicMass() - 1;
+    transferNucleus = theIonTable->GetIon(daughterZ, daughterA+1, 0, flb);
+    SetDaughter(0, theIonTable->GetIon(daughterZ, daughterA, endpointExcitation, flb) );
     SetDaughter(1, "e-");
     SetDaughter(2, "anti_nu_e");
     SetDaughter(3, "neutron");
 
-    SetUpBetaSpectrumSampler(daughterZ, daughterA, betaType);
+    parentMass = theParentNucleus -> GetPDGMass();
+    transferMass = transferNucleus -> GetPDGMass();
+    transferA = daughterA + 1;
+
+    nucleusMass = theIonTable->GetIon(daughterZ, daughterA, endpointExcitation, flb) -> GetPDGMass();
+    eMass = 0.510998950;
+    neutronMass = 939.56537;
+
+    totalQ = parentMass - ( nucleusMass +  eMass + neutronMass);
+
+    //must find maximal weight. Transferlevel can be minimal nucleusMass + neutronMass - transferMass and maximal parentMass - transferMass + eMass
+    minLevel = nucleusMass + neutronMass - transferMass;
+    maxLevel = parentMass + eMass - transferMass;
+
+    /*
+    G4double resolution = 10000;
+    G4double dL = 1.*(maxLevel-minLevel)/resolution;
+    G4cout << dL << G4endl;
+    //first look with resolution of 1000
+    G4double maxWeightLevel = 0;
+    maxWeight = 0;
+    for(int i = 0; i < resolution; i++){
+        G4double w = GetWeight(minLevel + i*dL);
+        G4cout << minLevel + i*dL << G4endl;
+        G4cout << w << G4endl;
+        if(w > maxWeight){
+            maxWeightLevel = minLevel + i*dL;
+            maxWeight = w;
+        }
+    }
+
+    G4cout << "first max level " << maxWeightLevel <<  G4endl;
+
+    G4cout << "max Weight " << maxWeight <<  G4endl;
+
+    G4double finerMinLevel = maxWeightLevel - dL;
+    G4double finerMaxLevel = maxWeightLevel + dL;
+    dL = 1.*(finerMaxLevel-finerMinLevel)/resolution;
+    for(int i = 0; i < resolution; i++){
+        G4double w = GetWeight(finerMinLevel + i*dL);
+        G4cout << finerMinLevel + i*dL << G4endl;
+        G4cout << w << G4endl;
+        if(w > maxWeight){
+            maxWeightLevel = finerMinLevel + i*dL;
+            maxWeight = w;
+        }
+    }*/
+
+    G4double minLevelSearch = minLevel;
+    G4double maxLevelSearch = maxLevel;
+    G4double resolution = 100;
+    G4int noLooks = 5;
+    G4double dL = 1.*(maxLevel-minLevel)/resolution;
+
+    G4double maxWeightLevel = 0;
+    maxWeight = 0;
+    for(int j = 0; j < noLooks; j++){
+        for(int i = 0; i < resolution; i++){
+            G4double w = GetWeight(minLevelSearch + i*dL);
+            if(w > maxWeight){
+                maxWeightLevel = minLevelSearch + i*dL;
+                maxWeight = w;
+            }
+        }
+        //now search with finer resolution.
+        minLevelSearch = maxWeightLevel - dL;
+        maxLevelSearch = maxWeightLevel + dL;
+        dL = 1.*(maxLevelSearch-minLevelSearch)/resolution;
+    }
+
+    SetUpBetaSpectrumSampler(daughterZ, daughterA+1, betaType);
 }
 
 
@@ -76,22 +147,57 @@ G4BDNeutronDecay::~G4BDNeutronDecay()
     delete spectrumSampler;
 }
 
+G4double G4BDNeutronDecay::GetWeight(G4double transferLevel)
+{
+    G4double betaQ = parentMass - (transferMass + transferLevel + eMass);
+    G4double neutronQ = totalQ - betaQ;
+    if(betaQ < 0 || neutronQ < 0) return 0;
+    else{
+        return GetBetaPhaseSpace(betaQ)*GetNeutronPenetrability(neutronQ,transferA,l)*1/(std::pow(transferLevel-resonance,2) + 1./4.*std::pow(width,2));
+    }
+}
+
+G4double G4BDNeutronDecay::GetConfiguration()
+{
+    G4bool found = false;
+    G4double transferLevel = 0;
+    G4double randomW = 0;
+    int i = 0;
+    while(!found){
+        //find by rejection sampling. First, pick random number between 0 and maximum possible weight
+        randomW = maxWeight * G4UniformRand();
+        //then pick a transferlevel between the minimum possible value and maximum possible value
+        transferLevel = minLevel + (maxLevel-minLevel)*G4UniformRand();
+        //if the randomWeight is larger than the weight for this level, reject the sample; else, the sample is good and accept.
+        if(GetWeight(transferLevel) > randomW){
+            //G4cout << transferLevel << G4endl;
+            //G4cout << i << G4endl;
+            return transferLevel;
+        }
+        i++;
+    }
+}
+
+
 
 G4DecayProducts* G4BDNeutronDecay::DecayIt(G4double)
 {
-    G4cout << width << G4endl;
-    G4cout << resonance << G4endl;
-    G4cout << l << G4endl;
-    G4cout << endpointExcitation << G4endl;
+    G4double transferLevel = GetConfiguration();
+    transferNucleus = theIonTable->GetIon(daughterZ, daughterA+1, transferLevel);
+    transferMass = transferNucleus -> GetPDGMass();
+    endpointEnergy = parentMass - (transferMass + eMass);
+    G4double neutronQ = totalQ - endpointEnergy;
+
+    //must set up new betaSpectrumSampler as betaQ-value has changed.
+    SetUpBetaSpectrumSampler(daughterZ, daughterA+1, betaType);
+
+    //first do a beta decay as done in original beta-decay classes with modified Q-value
     // Fill G4MT_parent with theParentNucleus (stored by SetParent in ctor)
     CheckAndFillParent();
 
     // Fill G4MT_daughters with e-, nu and residual nucleus (stored by SetDaughter)
     CheckAndFillDaughters();
 
-    G4double parentMass = G4MT_parent->GetPDGMass();
-    G4double eMass = G4MT_daughters[1]->GetPDGMass();
-    G4double nucleusMass = G4MT_daughters[0]->GetPDGMass();
     // Set up final state
     // parentParticle is set at rest here because boost with correct momentum
     // is done later
@@ -104,7 +210,7 @@ G4DecayProducts* G4BDNeutronDecay::DecayIt(G4double)
 
     G4double cosThetaENu = 2.*G4UniformRand() - 1.;
     G4double eTE = eMass + eKE;
-    G4double nuEnergy = ((endpointEnergy - eKE)*(parentMass + nucleusMass - eTE)
+    G4double nuEnergy = ((endpointEnergy - eKE)*(parentMass + transferMass - eTE)
                          - eMomentum*eMomentum)/(parentMass - eTE + eMomentum*cosThetaENu)/2.;
 
     // Electron 4-vector, isotropic angular distribution
@@ -137,17 +243,71 @@ G4DecayProducts* G4BDNeutronDecay::DecayIt(G4double)
             = new G4DynamicParticle(G4MT_daughters[2], nuDirection*nuEnergy);
     products->PushProducts(dynamicNeutrino);
 
-    // Daughter nucleus 4-vector
-    // p_D = - p_e - p_nu
+    //we now have a beta decay to the transfer nucleus. I want its velocity so that i can decay the neutron in its rest
+    //frame and make a Lorentztransformation back to the rest frame of the parent nucleus.
+
+    G4DynamicParticle dynamicTransfer(transferNucleus, -eDirection*eMomentum - nuDirection*nuEnergy);
+
+    /*G4DynamicParticle* dynamicTransfer =
+            new G4DynamicParticle(transferNucleus,
+                                  -eDirection*eMomentum - nuDirection*nuEnergy);*/
+    G4ThreeVector transferDirection = dynamicTransfer.GetMomentumDirection();
+
+    G4DecayProducts* transferProducts = new G4DecayProducts(dynamicTransfer);
+
+    //do neutron decay as in G4NeutronDecay
+    G4double cmMomentum = std::sqrt(neutronQ*(neutronQ + 2.*neutronMass)*
+                                    (neutronQ + 2.*nucleusMass)*
+                                    (neutronQ + 2.*neutronMass + 2.*nucleusMass) )/
+                          (neutronQ + neutronMass + nucleusMass)/2.;
+
+    G4double costheta = 2.*G4UniformRand()-1.0;
+    G4double sintheta = std::sqrt(1.0 - costheta*costheta);
+    phi  = twopi*G4UniformRand()*rad;
+    G4ThreeVector direction(sintheta*std::cos(phi),sintheta*std::sin(phi),
+                            costheta);
+
+    G4double KE = std::sqrt(cmMomentum*cmMomentum + neutronMass*neutronMass)
+                  - neutronMass;
+
+    G4DynamicParticle* dynamicNeutron =
+            new G4DynamicParticle(G4MT_daughters[3], direction, KE, neutronMass);
+
+    transferProducts->PushProducts(dynamicNeutron);
+
+    KE = std::sqrt(cmMomentum*cmMomentum + nucleusMass*nucleusMass) - nucleusMass;
+
     G4DynamicParticle* dynamicDaughter =
-            new G4DynamicParticle(G4MT_daughters[0],
-                                  -eDirection*eMomentum - nuDirection*nuEnergy);
+            new G4DynamicParticle(G4MT_daughters[0], -1.0*direction, KE, nucleusMass);
 
-    G4DynamicParticle* dynamicNeutron
-            = new G4DynamicParticle(G4MT_daughters[3], nuDirection*nuEnergy);
-    products->PushProducts(dynamicNeutron);
+    transferProducts->PushProducts(dynamicDaughter);
 
-    products->PushProducts(dynamicDaughter);
+    //boost products to rest frame of parent
+    transferProducts->Boost(0,0,0);
+
+    //add the products
+    G4DynamicParticle* boostedNeutron = transferProducts -> operator[](0);
+    G4DynamicParticle* boostedDaughter = transferProducts -> operator[](1);
+
+    products->PushProducts(boostedNeutron);
+
+    products->PushProducts(boostedDaughter);
+
+    //for checking energy conservation
+    /*G4double sumE = 0;
+    G4cout << "transferlevel " << transferLevel << G4endl;
+    G4cout << "neutronQ " << neutronQ << G4endl;
+    G4cout << "betaQ " << endpointEnergy << G4endl;
+    G4cout << "sum energy in beta-decay is " << dynamicTransfer.GetKineticEnergy() + dynamicElectron -> GetKineticEnergy() + dynamicNeutrino -> GetKineticEnergy() << G4endl;
+    G4cout << "difference is " << endpointEnergy - (dynamicTransfer.GetKineticEnergy() + dynamicElectron -> GetKineticEnergy() + dynamicNeutrino -> GetKineticEnergy()) << G4endl;
+    for(int i = 0; i < 4; i++){
+        G4cout << "energy of " << products-> operator[](i) -> GetParticleDefinition() -> GetParticleName() << " is " << products -> operator[](i) -> GetKineticEnergy() << G4endl;
+        sumE += products -> operator[](i) -> GetKineticEnergy();
+    }
+    G4cout << "Total energy is " << sumE << G4endl;
+    G4cout << "Total energy should be " << totalQ << G4endl;
+    G4cout << "Total difference is " << sumE - totalQ << G4endl << G4endl;
+*/
 
     return products;
 }

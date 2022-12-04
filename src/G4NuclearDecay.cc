@@ -45,11 +45,21 @@ G4NuclearDecay::G4NuclearDecay(const G4String& channelName,
 G4NuclearDecay::~G4NuclearDecay()
 {}
 
-G4double G4NuclearDecay::GetNeutronPenetrability(G4double E, G4double A1, G4double A2, G4int l){
-    G4double x = 1.4 * std::sqrt(2.*(A1*A2)/(A1+A2)*931502*E*1000)*(pow(A1,1./3.) + pow(A2,1./3.))/197329.;
+G4double G4NuclearDecay::GetNeutronPenetrability(G4double Q, G4double transferA, G4int l){
+    //the energy of the emitted neutron in the CM-frame of the decaying particle is then
+    // T_n = m_ion / m_n * T_ion, T_n + T_ion = neutronQ => T_n =  m_ion / m_n * (neutronQ - T_n) => T_n = m_ion / m_n * neutronQ / (1 + m_ion / m_n)
+    //G4double E = Q * (transferA) / (1 + transferA); actually E is the total CM energy, that is the Q value
+    G4double x = 1.4 * std::sqrt(2.*transferA/(transferA+1)*931.502*Q)*(pow(1,1./3.) + pow(transferA,1./3.))/197329.;
     if(l == 0){return 1;}
     if(l == 1){return x*x/(1.+x*x);}
     if(l == 2){return std::pow(x,4)/(9.+3.*std::pow(x,3)+std::pow(x,4)); }
-    if(l > 3){return std::pow(x,6)/(225.+45.*std::pow(x,2)+6*std::pow(x,4) + std::pow(x,6)); }
+    if(l >= 3){return std::pow(x,6)/(225.+45.*std::pow(x,2)+6*std::pow(x,4) + std::pow(x,6)); }
     else return -1;
+}
+
+G4double G4NuclearDecay::GetBetaPhaseSpace(G4double Q) {
+    //total energy release in decay normalized to electron mass
+    G4double e0 = (Q + 0.510998950)/0.510998950;
+    //phase space factor can be approximated using
+    return std::sqrt(e0*e0-1.)*(std::pow(e0,4)/30.-std::pow(e0,2)/20.-2./15.)+e0/4.*std::log(e0+std::sqrt(e0*e0-1.));
 }

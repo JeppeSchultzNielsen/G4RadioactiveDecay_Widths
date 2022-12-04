@@ -57,18 +57,37 @@ public:
 
     virtual G4DecayProducts* DecayIt(G4double);
 
+    virtual G4double GetWeight(G4double transferLevel);
+
+    virtual G4double GetConfiguration();
+
     virtual void DumpNuclearInfo();
 
 private:
     void SetUpBetaSpectrumSampler(const G4int& parentZ, const G4int& parentA,
                                   const G4BetaDecayType& type);
 
-    const G4double endpointEnergy;
+    G4double endpointEnergy;
     const G4double resonance;
     const G4double width;
     const G4int l;
     const G4double endpointExcitation;
     G4RandGeneral* spectrumSampler;
+    G4ParticleDefinition* transferNucleus;
+    G4double transferMass;
+    G4int transferA;
+    G4double nucleusMass;
+    G4double parentMass;
+    G4double totalQ;
+    G4double eMass;
+    G4double neutronMass;
+    G4double minLevel;
+    G4double maxLevel;
+    G4double maxWeight;
+    G4int daughterZ;
+    G4int daughterA;
+    const G4BetaDecayType betaType;
+    G4IonTable* theIonTable;
 };
 #endif
 
