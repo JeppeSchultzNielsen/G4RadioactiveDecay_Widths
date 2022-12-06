@@ -1,6 +1,6 @@
 
-#ifndef coulomb_h
-#define coulomb_h
+#ifndef CoulombFunctions_h
+#define CoulombFunctions_h
 
 class CoulombFunctions {
 

@@ -31,7 +31,7 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "G4BDNeutronDecay.hh"
+#include "G4BMDNeutronDecay.hh"
 #include "G4BetaDecayCorrections.hh"
 #include "G4ThreeVector.hh"
 #include "G4DynamicParticle.hh"
@@ -42,7 +42,7 @@
 #include <iomanip>
 #include "CoulombFunctions.hh"
 
-G4BDNeutronDecay::G4BDNeutronDecay(const G4ParticleDefinition* theParentNucleus,
+G4BMDNeutronDecay::G4BMDNeutronDecay(const G4ParticleDefinition* theParentNucleus,
                                    const G4double& branch, const G4double& e0,
                                    const G4double& excitationE,
                                    const G4Ions::G4FloatLevelBase& flb,
@@ -51,7 +51,7 @@ G4BDNeutronDecay::G4BDNeutronDecay(const G4ParticleDefinition* theParentNucleus,
                                    const G4double aWidth,
                                    const G4int aL,
                                    const G4double aEndpointExcitation)
-        : G4NuclearDecay("beta- decay", BetaMinus, excitationE, flb), endpointEnergy(e0), resonance(aResonance),
+        : G4NuclearDecay("beta- delayed neutron decay", BMDNeutron, excitationE, flb), endpointEnergy(e0), resonance(aResonance),
         width(aWidth), l(aL), endpointExcitation(aEndpointExcitation), betaType(aBetaType)
 {
     SetParent(theParentNucleus);  // Store name of parent nucleus, delete G4MT_parent
@@ -69,7 +69,7 @@ G4BDNeutronDecay::G4BDNeutronDecay(const G4ParticleDefinition* theParentNucleus,
     SetDaughter(3, "neutron");
 
     parentMass = theParentNucleus -> GetPDGMass();
-    transferMass = transferNucleus -> GetPDGMass();
+    origTransferMass = transferNucleus -> GetPDGMass();
     transferA = daughterA + 1;
 
     nucleusMass = theIonTable->GetIon(daughterZ, daughterA, endpointExcitation, flb) -> GetPDGMass();
@@ -78,43 +78,9 @@ G4BDNeutronDecay::G4BDNeutronDecay(const G4ParticleDefinition* theParentNucleus,
 
     totalQ = parentMass - ( nucleusMass +  eMass + neutronMass);
 
-    //must find maximal weight. Transferlevel can be minimal nucleusMass + neutronMass - transferMass and maximal parentMass - transferMass + eMass
-    minLevel = nucleusMass + neutronMass - transferMass;
-    maxLevel = parentMass + eMass - transferMass;
-
-    /*
-    G4double resolution = 10000;
-    G4double dL = 1.*(maxLevel-minLevel)/resolution;
-    G4cout << dL << G4endl;
-    //first look with resolution of 1000
-    G4double maxWeightLevel = 0;
-    maxWeight = 0;
-    for(int i = 0; i < resolution; i++){
-        G4double w = GetWeight(minLevel + i*dL);
-        G4cout << minLevel + i*dL << G4endl;
-        G4cout << w << G4endl;
-        if(w > maxWeight){
-            maxWeightLevel = minLevel + i*dL;
-            maxWeight = w;
-        }
-    }
-
-    G4cout << "first max level " << maxWeightLevel <<  G4endl;
-
-    G4cout << "max Weight " << maxWeight <<  G4endl;
-
-    G4double finerMinLevel = maxWeightLevel - dL;
-    G4double finerMaxLevel = maxWeightLevel + dL;
-    dL = 1.*(finerMaxLevel-finerMinLevel)/resolution;
-    for(int i = 0; i < resolution; i++){
-        G4double w = GetWeight(finerMinLevel + i*dL);
-        G4cout << finerMinLevel + i*dL << G4endl;
-        G4cout << w << G4endl;
-        if(w > maxWeight){
-            maxWeightLevel = finerMinLevel + i*dL;
-            maxWeight = w;
-        }
-    }*/
+    //must find maximal weight. Transferlevel can be minimal nucleusMass + neutronMass - transferMass and maximal parentMass - (transferMass + eMass)
+    minLevel = origTransferMass - (nucleusMass + neutronMass);
+    maxLevel = parentMass - eMass - origTransferMass;
 
     G4double minLevelSearch = minLevel;
     G4double maxLevelSearch = maxLevel;
@@ -142,14 +108,14 @@ G4BDNeutronDecay::G4BDNeutronDecay(const G4ParticleDefinition* theParentNucleus,
 }
 
 
-G4BDNeutronDecay::~G4BDNeutronDecay()
+G4BMDNeutronDecay::~G4BMDNeutronDecay()
 {
     delete spectrumSampler;
 }
 
-G4double G4BDNeutronDecay::GetWeight(G4double transferLevel)
+G4double G4BMDNeutronDecay::GetWeight(G4double transferLevel)
 {
-    G4double betaQ = parentMass - (transferMass + transferLevel + eMass);
+    G4double betaQ = parentMass - (origTransferMass + transferLevel + eMass);
     G4double neutronQ = totalQ - betaQ;
     if(betaQ < 0 || neutronQ < 0) return 0;
     else{
@@ -157,7 +123,7 @@ G4double G4BDNeutronDecay::GetWeight(G4double transferLevel)
     }
 }
 
-G4double G4BDNeutronDecay::GetConfiguration()
+G4double G4BMDNeutronDecay::GetConfiguration()
 {
     G4bool found = false;
     G4double transferLevel = 0;
@@ -180,7 +146,7 @@ G4double G4BDNeutronDecay::GetConfiguration()
 
 
 
-G4DecayProducts* G4BDNeutronDecay::DecayIt(G4double)
+G4DecayProducts* G4BMDNeutronDecay::DecayIt(G4double)
 {
     G4double transferLevel = GetConfiguration();
     transferNucleus = theIonTable->GetIon(daughterZ, daughterA+1, transferLevel);
@@ -314,7 +280,7 @@ G4DecayProducts* G4BDNeutronDecay::DecayIt(G4double)
 
 
 void
-G4BDNeutronDecay::SetUpBetaSpectrumSampler(const G4int& daughterZ,
+G4BMDNeutronDecay::SetUpBetaSpectrumSampler(const G4int& daughterZ,
                                            const G4int& daughterA,
                                            const G4BetaDecayType& betaType)
 {
@@ -349,11 +315,11 @@ G4BDNeutronDecay::SetUpBetaSpectrumSampler(const G4int& daughterZ,
 }
 
 
-void G4BDNeutronDecay::DumpNuclearInfo()
+void G4BMDNeutronDecay::DumpNuclearInfo()
 {
-    G4cout << " G4BetaMinusDecay for parent nucleus " << GetParentName() << G4endl;
-    G4cout << " decays to " << GetDaughterName(0) << " , " << GetDaughterName(1)
-           << " and " << GetDaughterName(2) << " with branching ratio " << GetBR()
-           << "% and endpoint energy " << endpointEnergy/keV << " keV " << G4endl;
+    G4cout << " G4BMDNeutronDecay for parent nucleus " << GetParentName() << G4endl;
+    G4cout << " decays to " << GetDaughterName(0) << " , " << GetDaughterName(1) << " , " << GetDaughterName(2)
+           << " and " << GetDaughterName(3) << " with branching ratio " << GetBR()
+           << "% and total Q-value " << totalQ/keV << " keV " << G4endl;
 }
 

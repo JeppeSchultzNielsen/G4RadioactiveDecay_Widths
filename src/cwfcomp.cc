@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <iostream>
 
-#include "../include/cwfcomp.hh"
+#include "cwfcomp.hh"
 
 using namespace std;
 

@@ -33,18 +33,18 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
-#ifndef G4BDNeutronDecay_h
-#define G4BDNeutronDecay_h 1
+#ifndef G4BMDNeutronDecay_h
+#define G4BMDNeutronDecay_h 1
 
 #include "G4NuclearDecay.hh"
 #include "G4BetaDecayType.hh"
 #include "Randomize.hh"
 
 
-class G4BDNeutronDecay : public G4NuclearDecay
+class G4BMDNeutronDecay : public G4NuclearDecay
 {
 public:
-    G4BDNeutronDecay(const G4ParticleDefinition* theParentNucleus,
+    G4BMDNeutronDecay(const G4ParticleDefinition* theParentNucleus,
                      const G4double& theBR, const G4double& endpointE,
                      const G4double& ex, const G4Ions::G4FloatLevelBase& flb,
                      const G4BetaDecayType& type,
@@ -53,7 +53,7 @@ public:
                      const G4int aL,
                      const G4double aEndpointExcitation);
 
-    virtual ~G4BDNeutronDecay();
+    virtual ~G4BMDNeutronDecay();
 
     virtual G4DecayProducts* DecayIt(G4double);
 
@@ -74,6 +74,7 @@ private:
     const G4double endpointExcitation;
     G4RandGeneral* spectrumSampler;
     G4ParticleDefinition* transferNucleus;
+    G4double origTransferMass;
     G4double transferMass;
     G4int transferA;
     G4double nucleusMass;

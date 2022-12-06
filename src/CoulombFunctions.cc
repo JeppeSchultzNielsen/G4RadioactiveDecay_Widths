@@ -6,8 +6,8 @@ reference: N. Michel, Comp. Phys. Comm. 176 (2007) 232-249
 
 #include <iostream>
 
-#include "../include/CoulombFunctions.hh"
-#include "../include/cwfcomp.hh"
+#include "CoulombFunctions.hh"
+#include "cwfcomp.hh"
 
 using namespace std;
 
@@ -45,6 +45,7 @@ double CoulombFunctions::phi(double e)
 
 double CoulombFunctions::penetrability(double e)
 {
+    e = e*1000; //conversion to keV
   if (e<=0) return 0;
   double eta, rho, E;
   E = e;

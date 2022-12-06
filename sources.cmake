@@ -27,11 +27,13 @@ geant4_add_module(G4hadronic_radioactivedecay
     G4TritonDecay.hh
     G4UIcmdWithNucleusLimits.hh
     G4UserLimitsForRD.hh
-        G4BDNeutronDecay.hh
+        G4BMDNeutronDecay.hh
         ODE_integration.hh
         complex_functions.hh
         CoulombFunctions.hh
         cwfcomp.hh
+        G4BMDTritonNeutronDecay.hh
+        G4BMDProtonDecay.hh
   SOURCES
     G4AlphaDecay.cc
     G4BatemanParameters.cc
@@ -56,7 +58,8 @@ geant4_add_module(G4hadronic_radioactivedecay
     G4RadioactivityTable.cc
     G4TritonDecay.cc
     G4UIcmdWithNucleusLimits.cc
-        G4BDNeutronDecay.cc
+        G4BMDTritonNeutronDecay.cc
+        G4BMDNeutronDecay.cc
         ODE_integration.cc
         complex_functions.cc
         CoulombFunctions.cc

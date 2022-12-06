@@ -3,8 +3,8 @@
 #include <complex>
 #include <iostream>
 
-#include "../include/ODE_integration.hh"
-#include "../include/cwfcomp.hh"
+#include "ODE_integration.hh"
+#include "cwfcomp.hh"
 
 using namespace std;
 

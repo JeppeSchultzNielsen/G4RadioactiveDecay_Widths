@@ -182,6 +182,8 @@ G4BetaMinusDecay::SetUpBetaSpectrumSampler(const G4int& daughterZ,
       p = std::sqrt(e*e - 1.);
       f = p*e*(e0 - e + 1.)*(e0 - e + 1.);
 
+
+      //G4cout << betaType << G4endl;
       // Apply Fermi factor to get allowed shape
       f *= corrections.FermiFunction(e);
 

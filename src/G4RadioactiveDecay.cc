@@ -74,7 +74,9 @@
 #include "G4Alpha.hh"
 #include "G4Triton.hh"
 #include "G4Proton.hh"
-#include "G4BDNeutronDecay.hh"
+#include "G4BMDNeutronDecay.hh"
+#include "G4BMDProtonDecay.hh"
+#include "G4BMDTritonNeutronDecay.hh"
 
 #include "G4HadronicProcessType.hh"
 #include "G4HadronicProcessStore.hh"
@@ -623,13 +625,15 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
           }
 
         } else if (found) {
+        } else if (found) {
           // The right part of the radioactive decay data file has been found.  Search
           // through it to determine the mode of decay of the subsequent records.
-
+            G4cout << " hvad sker der " << G4endl;
           // Store for later the total decay probability for each decay mode 
           if (inputLine.length() < 72) {
             tmpStream >> theDecayMode >> dummy >> decayModeTotal;
-            switch (theDecayMode) {
+              G4cout << "tdm" << theDecayMode << G4endl;
+              switch (theDecayMode) {
               case IT:
                 {
                 G4ITDecay* anITChannel = new G4ITDecay(&theParentNucleus, decayModeTotal,
@@ -662,8 +666,8 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
                 modeTotalBR[SpFission] = decayModeTotal; break;
               case BDProton:
                 /* Not yet implemented */  break;
-              case BDNeutron:
-                  modeTotalBR[BDNeutron] = decayModeTotal; break;
+              case BMDNeutron:
+                  modeTotalBR[BMDNeutron] = decayModeTotal; break;
               case Beta2Minus:
                 /* Not yet implemented */  break;
               case Beta2Plus:
@@ -674,6 +678,8 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
                 /* Not yet implemented */  break;
               case Triton:
                 modeTotalBR[Triton] = decayModeTotal; break;
+                case BMDTritonNeutron:
+                    modeTotalBR[BMDTritonNeutron] = decayModeTotal; break;
               case RDM_ERROR:
 
               default:
@@ -831,15 +837,15 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
                   // G4cout << " beta-delayed proton decay, a = " << a << ", b = " << b << ", c = " << c << G4endl;
                   break;
 
-              case BDNeutron:
+              case BMDNeutron:
               {
-                  G4BDNeutronDecay* aBDNeutronChannel =
-                          new G4BDNeutronDecay(&theParentNucleus, b, c*MeV, a*MeV,
+                  G4BMDNeutronDecay* aBMDNeutronChannel =
+                          new G4BMDNeutronDecay(&theParentNucleus, b, c*MeV, a*MeV,
                                         daughterFloatLevel, betaType, resonance1, width1, l1, endpointExcitation);
 //              aBetaMinusChannel->DumpNuclearInfo();
 //                aBetaMinusChannel->SetHLThreshold(halflifethreshold);
-                  theDecayTable->Insert(aBDNeutronChannel);
-                  modeSumBR[BDNeutron] += b;
+                  theDecayTable->Insert(aBMDNeutronChannel);
+                  modeSumBR[BMDNeutron] += b;
               }
                   break;
 
@@ -873,8 +879,19 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
                     theDecayTable->Insert(aTritonChannel);
                     modeSumBR[Triton] += b;
                 }
-              break;
                     break;
+
+                case BMDTritonNeutron:
+                {
+                    G4BMDTritonNeutronDecay* aBMDTritonNeutronChannel =
+                            new G4BMDTritonNeutronDecay(&theParentNucleus, b, c*MeV, a*MeV,
+                                                  daughterFloatLevel, betaType, resonance1, width1, l1, resonance2, width2, l2, endpointExcitation);
+//              aBetaMinusChannel->DumpNuclearInfo();
+//                aBetaMinusChannel->SetHLThreshold(halflifethreshold);
+                    theDecayTable->Insert(aBMDTritonNeutronChannel);
+                    modeSumBR[BMDTritonNeutron] += b;
+                }
+                break;
 
               case RDM_ERROR:
 
@@ -894,15 +911,20 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
     G4NuclearDecay* theNuclearDecayChannel = 0;
     G4String mode = "";
 
+    G4cout << "hej" << G4endl;
+    G4cout << theDecayTable->entries() << G4endl;
+
     G4double theBR = 0.0;
     for (G4int i = 0; i < theDecayTable->entries(); i++) {
       theChannel = theDecayTable->GetDecayChannel(i);
       theNuclearDecayChannel = static_cast<G4NuclearDecay*>(theChannel);
       theDecayMode = theNuclearDecayChannel->GetDecayMode();
-
       if (theDecayMode != IT) {
 	theBR = theChannel->GetBR();
 	theChannel->SetBR(theBR*modeTotalBR[theDecayMode]/modeSumBR[theDecayMode]);
+          G4cout << theBR*modeTotalBR[theDecayMode]/modeSumBR[theDecayMode] << G4endl;
+          G4cout << modeSumBR[theDecayMode] << G4endl;
+          G4cout << theDecayMode << G4endl;
       }
     }
   }  // decay file exists

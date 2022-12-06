@@ -30,7 +30,6 @@ std::istream& operator >> (std::istream& strm, G4BetaDecayType& q)
 {
   G4String a;
   strm >> a;
-
   if (a == "allowed")
     {q = allowed;}
   else if (a == "firstForbidden")

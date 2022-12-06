@@ -556,7 +556,7 @@ CalculateChainsFromParent(const G4ParticleDefinition& theParentNucleus)
             // Not yet implemented
             break;
 
-          case BDNeutron:
+          case BMDNeutron:
             // Not yet implemented
             break;
 

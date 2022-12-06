@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <iostream>
 
-#include "../include/complex_functions.hh"
+#include "complex_functions.hh"
 using namespace std;
 
 #define SIGN(a) (((a) < 0) ? (-1) : (1))              
