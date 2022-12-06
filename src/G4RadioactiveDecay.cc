@@ -623,16 +623,12 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
               if (!floatMatch) found = false;
             }
           }
-
-        } else if (found) {
         } else if (found) {
           // The right part of the radioactive decay data file has been found.  Search
           // through it to determine the mode of decay of the subsequent records.
-            G4cout << " hvad sker der " << G4endl;
           // Store for later the total decay probability for each decay mode 
           if (inputLine.length() < 72) {
             tmpStream >> theDecayMode >> dummy >> decayModeTotal;
-              G4cout << "tdm" << theDecayMode << G4endl;
               switch (theDecayMode) {
               case IT:
                 {
@@ -911,9 +907,6 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
     G4NuclearDecay* theNuclearDecayChannel = 0;
     G4String mode = "";
 
-    G4cout << "hej" << G4endl;
-    G4cout << theDecayTable->entries() << G4endl;
-
     G4double theBR = 0.0;
     for (G4int i = 0; i < theDecayTable->entries(); i++) {
       theChannel = theDecayTable->GetDecayChannel(i);
@@ -922,9 +915,6 @@ G4RadioactiveDecay::LoadDecayTable(const G4ParticleDefinition& theParentNucleus)
       if (theDecayMode != IT) {
 	theBR = theChannel->GetBR();
 	theChannel->SetBR(theBR*modeTotalBR[theDecayMode]/modeSumBR[theDecayMode]);
-          G4cout << theBR*modeTotalBR[theDecayMode]/modeSumBR[theDecayMode] << G4endl;
-          G4cout << modeSumBR[theDecayMode] << G4endl;
-          G4cout << theDecayMode << G4endl;
       }
     }
   }  // decay file exists
