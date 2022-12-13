@@ -63,12 +63,12 @@ G4BMDTritonNeutronDecay::G4BMDTritonNeutronDecay(const G4ParticleDefinition* the
     SetBR(branch);
 
     SetNumberOfDaughters(5);
-    theIonTable =
+    G4IonTable* theIonTable =
             (G4IonTable*)(G4ParticleTable::GetParticleTable()->GetIonTable());
     daughterZ = theParentNucleus->GetAtomicNumber();
     daughterA = theParentNucleus->GetAtomicMass() - 4;
-    transferNucleus1 = theIonTable->GetIon(daughterZ+1, daughterA+4, 0, flb); //nucleus where 1st resonance exists; after beta- decay
-    transferNucleus2 = theIonTable->GetIon(daughterZ, daughterA+1, 0, flb); //nucleus where 2nd resonance exists; after triton decay
+    G4ParticleDefinition* transferNucleus1 = theIonTable->GetIon(daughterZ+1, daughterA+4, 0, flb); //nucleus where 1st resonance exists; after beta- decay
+    G4ParticleDefinition* transferNucleus2 = theIonTable->GetIon(daughterZ, daughterA+1, 0, flb); //nucleus where 2nd resonance exists; after triton decay
     SetDaughter(0, theIonTable->GetIon(daughterZ, daughterA, endpointExcitation, flb) );
     SetDaughter(1, "e-");
     SetDaughter(2, "anti_nu_e");
@@ -84,7 +84,8 @@ G4BMDTritonNeutronDecay::G4BMDTritonNeutronDecay(const G4ParticleDefinition* the
     transferZ2 = daughterZ;
 
     //initialize Columbfunctions calculator. R0 chosen as 1.4 fm.
-    cf = new CoulombFunctions(transferA1, 3, transferZ1, 1, l1, 1.4);
+    cfTriton = new CoulombFunctions(transferA1, 3, transferZ1, 1, l1, 1.4);
+    cfNeutron = new CoulombFunctions(transferA2, 1, transferZ2, 0, l2, 1.4);
     //bc = cf -> shiftFunction();
 
 
@@ -175,9 +176,9 @@ G4double G4BMDTritonNeutronDecay::GetWeight(G4double transferLevel1, G4double tr
     G4double neutronQ = totalQ - betaQ - tritonQ;
     if(betaQ < 0.001 || neutronQ < 0.001 || tritonQ < 0.001) return 0; //to avoid numerical errors when calculating penetrations
     else{
-        G4double tritonPen = cf -> penetrability(tritonQ);
-        //G4double tritonShift = cf -> shiftFunction(tritonQ); GetBetaPhaseSpace(betaQ)*
-        return GetBetaPhaseSpace(betaQ)*GetNeutronPenetrability(neutronQ,transferA2,l2)*tritonPen*1/(std::pow(transferLevel1-resonance1,2) + 1./4.*std::pow(width1,2))*1/(std::pow(transferLevel2-resonance2,2) + 1./4.*std::pow(width2,2));
+        G4double tritonPen = cfTriton -> penetrability(tritonQ);
+        G4double neutronPen = cfNeutron -> penetrability(neutronQ);
+        return GetBetaPhaseSpace(betaQ)*neutronPen*tritonPen*1/(std::pow(transferLevel1-resonance1,2) + 1./4.*std::pow(width1,2))*1/(std::pow(transferLevel2-resonance2,2) + 1./4.*std::pow(width2,2));
     }
     return 0;
 }
@@ -214,34 +215,12 @@ std::vector<G4double> G4BMDTritonNeutronDecay::GetConfiguration()
 G4DecayProducts* G4BMDTritonNeutronDecay::DecayIt(G4double)
 {
     std::vector<G4double> transferLevels = GetConfiguration();
-    //G4ParticleDefinition* transferNucleus1 = Ion(transferZ1, transferA1, transferLevels[0]);
-    //G4ParticleDefinition* transferNucleus2 = Ion(transferZ2, transferA2, transferLevels[1]);
-    //((G4Ions*) transferNucleus1) -> SetExcitationEnergy(transferLevels[0]);
-    //((G4Ions*) transferNucleus2) -> SetExcitationEnergy(transferLevels[1]);
 
-    /*G4ParticleDefinition* transferNucleus1 = new G4Ions(   "transfer1",  origTransferMass1 + transferLevels[0],       0.0*MeV,     G4double(transferZ1)*eplus,
-                                                           0,              +1,             0,
-                                                           0,               0,             0,
-                                                           "nucleus",               0,    transferA1,    0,
-                                                           0,            0,    0,       false,
-                                                           "generic",               0,
-                                                           transferLevels[0],            0       );
-    G4ParticleDefinition* transferNucleus2 = new G4Ions(   "transfer2",  origTransferMass2 + transferLevels[1],       0.0*MeV,     G4double(transferZ2)*eplus,
-    0,              +1,             0,
-            0,               0,             0,
-            "nucleus",               0,    transferA2,    0,
-            0,            0,    0,       false,
-            "generic",               0,
-            transferLevels[1],            0       );*/
-    transferMass1 = transferNucleus1 -> GetPDGMass();
-    transferMass2 = transferNucleus2 -> GetPDGMass();
+    G4double transferMass1 = origTransferMass1 + transferLevels[0];
+    G4double transferMass2 = origTransferMass2 + transferLevels[1];
     endpointEnergy = parentMass - (transferMass1 + eMass);
     G4double tritonQ = transferMass1 - (transferMass2 + tritonMass);
     G4double neutronQ = totalQ - endpointEnergy - tritonQ;
-
-
-    G4cout <<transferMass1 - origTransferMass1 << G4endl;
-    G4cout <<transferMass2 - origTransferMass2 << G4endl;
 
     //must set up new betaSpectrumSampler as betaQ-value has changed.
     SetUpBetaSpectrumSampler(transferZ1, transferA1+1, betaType);
@@ -300,10 +279,10 @@ G4DecayProducts* G4BMDTritonNeutronDecay::DecayIt(G4double)
 
     //we now have a beta decay to the transfer nucleus. I want its velocity so that i can decay the triton in its rest
     //frame and make a Lorentztransformation back to the rest frame of the parent nucleus.
+    G4double KE = endpointEnergy - nuEnergy - eKE;
 
-    G4DynamicParticle dynamicTransfer1(transferNucleus1, -eDirection*eMomentum - nuDirection*nuEnergy);
-
-    G4DecayProducts* transferProducts1 = new G4DecayProducts(dynamicTransfer1);
+    CLHEP::HepLorentzVector fourVecTransfer1 = CLHEP::HepLorentzVector(transferMass1 + KE, -eDirection*eMomentum - nuDirection*nuEnergy);
+    G4ThreeVector boostToCM1 = -fourVecTransfer1.findBoostToCM();
 
     //do neutron decay as in G4NeutronDecay
     G4double cmMomentum = std::sqrt(tritonQ*(tritonQ + 2.*tritonMass)*
@@ -317,33 +296,25 @@ G4DecayProducts* G4BMDTritonNeutronDecay::DecayIt(G4double)
     G4ThreeVector direction(sintheta*std::cos(phi),sintheta*std::sin(phi),
                             costheta);
 
-    G4double KE = std::sqrt(cmMomentum*cmMomentum + tritonMass*tritonMass)
+    KE = std::sqrt(cmMomentum*cmMomentum + tritonMass*tritonMass)
                   - tritonMass;
 
-    G4DynamicParticle* dynamicTriton =
-            new G4DynamicParticle(G4MT_daughters[3], direction, KE, tritonMass);
+    G4double tritonMomentum = std::sqrt((tritonMass+KE)*(tritonMass+KE) - tritonMass*tritonMass);
 
-    transferProducts1->PushProducts(dynamicTriton);
+    CLHEP::HepLorentzVector fourVecTriton = CLHEP::HepLorentzVector(tritonMass+KE, tritonMomentum*direction);
+    G4ThreeVector boostedTritonMomentum = fourVecTriton.boost(boostToCM1).vect();
+
+    G4DynamicParticle* dynamicTriton
+            = new G4DynamicParticle(G4MT_daughters[3], boostedTritonMomentum);
+    products->PushProducts(dynamicTriton);
 
     KE = std::sqrt(cmMomentum*cmMomentum + transferMass2*transferMass2) - transferMass2;
-
-    G4DynamicParticle* dynamicTransfer2 =
-            new G4DynamicParticle(transferNucleus2, -1.0*direction, KE, transferMass2);
-
-    transferProducts1->PushProducts(dynamicTransfer2);
-
-    //boost products to rest frame of parent
-    transferProducts1->Boost(0,0,0);
-
-    //add the products
-    G4DynamicParticle* boostedTriton = transferProducts1 -> operator[](0);
-    G4DynamicParticle* boostedTransfer2 = transferProducts1 -> operator[](1);
-    products->PushProducts(boostedTriton);
+    CLHEP::HepLorentzVector fourVecTransfer2 = CLHEP::HepLorentzVector(transferMass2+KE, -direction*tritonMomentum);
+    fourVecTransfer2 = fourVecTransfer2.boost(boostToCM1);
+    G4ThreeVector boostToCM2 = -fourVecTransfer2.findBoostToCM();
 
 
     //now decay of transferNucleus2.
-    G4DynamicParticle dynamicTransfer2c(transferNucleus2, boostedTransfer2 -> GetMomentum());
-    G4DecayProducts* transferProducts2 = new G4DecayProducts(dynamicTransfer2c);
     //do neutron decay as in G4NeutronDecay
     cmMomentum = std::sqrt(neutronQ*(neutronQ + 2.*neutronMass)*
                                     (neutronQ + 2.*nucleusMass)*
@@ -358,52 +329,50 @@ G4DecayProducts* G4BMDTritonNeutronDecay::DecayIt(G4double)
 
     KE = std::sqrt(cmMomentum*cmMomentum + neutronMass*neutronMass)
                   - neutronMass;
+    G4double neutronMomentum = std::sqrt((neutronMass+KE)*(neutronMass+KE) - neutronMass*neutronMass);
+    CLHEP::HepLorentzVector fourVecNeutron = CLHEP::HepLorentzVector(neutronMass+KE, direction*neutronMomentum);
+    G4ThreeVector boostedNeutronMomentum = fourVecNeutron.boost(boostToCM2).vect();
 
     G4DynamicParticle* dynamicNeutron =
-            new G4DynamicParticle(G4MT_daughters[4], direction, KE, neutronMass);
-
-    transferProducts2->PushProducts(dynamicNeutron);
+            new G4DynamicParticle(G4MT_daughters[4], boostedNeutronMomentum);
+    products->PushProducts(dynamicNeutron);
 
     KE = std::sqrt(cmMomentum*cmMomentum + nucleusMass*nucleusMass) - nucleusMass;
+    CLHEP::HepLorentzVector fourVecDaughter = CLHEP::HepLorentzVector(nucleusMass+KE, -direction*neutronMomentum);
+    G4ThreeVector boostedDaughterMomentum = fourVecDaughter.boost(boostToCM2).vect();
 
     G4DynamicParticle* dynamicDaughter =
-            new G4DynamicParticle(G4MT_daughters[0], -1.0*direction, KE, nucleusMass);
+            new G4DynamicParticle(G4MT_daughters[0], boostedDaughterMomentum);
 
-    transferProducts2->PushProducts(dynamicDaughter);
+    products->PushProducts(dynamicDaughter);
 
-    //boost products to rest frame of parent
-    transferProducts2->Boost(0,0,0);
-
-    //add the products
-    G4DynamicParticle* boostedNeutron = transferProducts2 -> operator[](0);
-    G4DynamicParticle* boostedDaughter = transferProducts2 -> operator[](1);
-
-    products->PushProducts(boostedNeutron);
-
-    products->PushProducts(boostedDaughter);
 
     //for checking energy conservation
-    G4double sumE = 0;
+    /*G4double sumE = 0;
+    G4double px = 0;
+    G4double py = 0;
+    G4double pz = 0;
     G4cout << "transferlevels " << transferLevels[0] << " , " << transferLevels[1] << G4endl;
     G4cout << "neutronQ " << neutronQ << G4endl;
     G4cout << "betaQ " << endpointEnergy << G4endl;
     G4cout << "tritonQ " << tritonQ << G4endl;
-    G4cout << "sum energy in beta-decay is " << dynamicTransfer1.GetKineticEnergy() + dynamicElectron -> GetKineticEnergy() + dynamicNeutrino -> GetKineticEnergy() << G4endl;
-    G4cout << "difference is " << endpointEnergy - (dynamicTransfer1.GetKineticEnergy() + dynamicElectron -> GetKineticEnergy() + dynamicNeutrino -> GetKineticEnergy()) << G4endl;
-    G4cout << "after triton decay sum energy is " << dynamicTransfer2c.GetKineticEnergy() + boostedTriton -> GetKineticEnergy() + dynamicElectron -> GetKineticEnergy() + dynamicNeutrino -> GetKineticEnergy() << G4endl;
-    G4cout << "difference is " << endpointEnergy + tritonQ - (dynamicTransfer2c.GetKineticEnergy() + boostedTriton -> GetKineticEnergy() + dynamicElectron -> GetKineticEnergy() + dynamicNeutrino -> GetKineticEnergy() )<< G4endl;
-    G4cout << "after neutron decay sum energy is " << boostedDaughter -> GetKineticEnergy() + boostedTriton -> GetKineticEnergy() + dynamicElectron -> GetKineticEnergy() + dynamicNeutrino -> GetKineticEnergy() + boostedNeutron -> GetKineticEnergy()<< G4endl;
-    G4cout << "difference is " << endpointEnergy + tritonQ + neutronQ - (boostedDaughter -> GetKineticEnergy() + boostedTriton -> GetKineticEnergy() + dynamicElectron -> GetKineticEnergy() + dynamicNeutrino -> GetKineticEnergy() + boostedNeutron -> GetKineticEnergy()) << G4endl;
+    G4cout << "kinetic energy of beta decay products " << dynamicNeutrino -> GetKineticEnergy() + dynamicElectron -> GetKineticEnergy() + fourVecTransfer1.e() - transferMass1 << G4endl;
+    G4cout << "kinetic energy of products after triton decay " << dynamicNeutrino -> GetKineticEnergy() + dynamicElectron -> GetKineticEnergy() + dynamicTriton -> GetKineticEnergy() + fourVecTransfer2.e() - transferMass2 << G4endl;
+    G4cout << "should be " << endpointEnergy + tritonQ << G4endl;
     for(int i = 0; i < 5; i++){
         G4cout << "energy of " << products-> operator[](i) -> GetParticleDefinition() -> GetParticleName() << " is " << products -> operator[](i) -> GetKineticEnergy() << G4endl;
         sumE += products -> operator[](i) -> GetKineticEnergy();
+        G4ThreeVector p = products -> operator[](i) -> GetMomentum();
+        px += p[0];
+        py += p[1];
+        pz += p[2];
     }
+    G4cout << "Total px is " << px << G4endl;
+    G4cout << "Total py is " << py << G4endl;
+    G4cout << "Total pz is " << pz << G4endl;
     G4cout << "Total energy is " << sumE << G4endl;
     G4cout << "Total energy should be " << totalQ << G4endl;
-    G4cout << "Total difference is " << sumE - totalQ << G4endl << G4endl;
-
-    G4ParticleTable::GetParticleTable() -> Remove(transferNucleus1);
-    G4ParticleTable::GetParticleTable() -> Remove(transferNucleus2);
+    G4cout << "Total difference is " << sumE - totalQ << G4endl << G4endl;*/
 
     return products;
 }
@@ -431,7 +400,6 @@ G4BMDTritonNeutronDecay::SetUpBetaSpectrumSampler(const G4int& daughterZ,
             e = 1. + e0*(G4double(ptn) + 0.5)/G4double(npti);
             p = std::sqrt(e*e - 1.);
             f = p*e*(e0 - e + 1.)*(e0 - e + 1.);
-
             // Apply Fermi factor to get allowed shape
             f *= corrections.FermiFunction(e);
 

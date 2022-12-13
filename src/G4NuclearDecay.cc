@@ -50,6 +50,7 @@ G4double G4NuclearDecay::GetNeutronPenetrability(G4double Q, G4double transferA,
     // T_n = m_ion / m_n * T_ion, T_n + T_ion = neutronQ => T_n =  m_ion / m_n * (neutronQ - T_n) => T_n = m_ion / m_n * neutronQ / (1 + m_ion / m_n)
     //G4double E = Q * (transferA) / (1 + transferA); actually E is the total CM energy, that is the Q value
     G4double x = 1.4 * std::sqrt(2.*transferA/(transferA+1)*931.502*Q)*(pow(1,1./3.) + pow(transferA,1./3.))/197329.;
+    G4cout << x << G4endl;
     if(l == 0){return 1;}
     if(l == 1){return x*x/(1.+x*x);}
     if(l == 2){return std::pow(x,4)/(9.+3.*std::pow(x,3)+std::pow(x,4)); }

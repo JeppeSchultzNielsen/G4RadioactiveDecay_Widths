@@ -39,6 +39,7 @@
 #include "G4NuclearDecay.hh"
 #include "G4BetaDecayType.hh"
 #include "Randomize.hh"
+#include "CoulombFunctions.hh"
 
 
 class G4BMDNeutronDecay : public G4NuclearDecay
@@ -73,10 +74,9 @@ private:
     const G4int l;
     const G4double endpointExcitation;
     G4RandGeneral* spectrumSampler;
-    G4ParticleDefinition* transferNucleus;
     G4double origTransferMass;
-    G4double transferMass;
     G4int transferA;
+    G4int transferZ;
     G4double nucleusMass;
     G4double parentMass;
     G4double totalQ;
@@ -88,7 +88,7 @@ private:
     G4int daughterZ;
     G4int daughterA;
     const G4BetaDecayType betaType;
-    G4IonTable* theIonTable;
+    CoulombFunctions* cfNeutron;
 };
 #endif
 

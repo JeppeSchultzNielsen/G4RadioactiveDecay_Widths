@@ -75,7 +75,6 @@
 #include "G4Triton.hh"
 #include "G4Proton.hh"
 #include "G4BMDNeutronDecay.hh"
-#include "G4BMDProtonDecay.hh"
 #include "G4BMDTritonNeutronDecay.hh"
 
 #include "G4HadronicProcessType.hh"

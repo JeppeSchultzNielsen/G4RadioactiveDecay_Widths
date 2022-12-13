@@ -33,7 +33,6 @@ geant4_add_module(G4hadronic_radioactivedecay
         CoulombFunctions.hh
         cwfcomp.hh
         G4BMDTritonNeutronDecay.hh
-        G4BMDProtonDecay.hh
   SOURCES
     G4AlphaDecay.cc
     G4BatemanParameters.cc

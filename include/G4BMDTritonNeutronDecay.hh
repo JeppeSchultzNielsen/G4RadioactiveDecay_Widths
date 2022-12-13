@@ -80,10 +80,6 @@ private:
     const G4int l2;
     const G4double endpointExcitation;
     G4RandGeneral* spectrumSampler;
-    G4ParticleDefinition* transferNucleus1;
-    G4ParticleDefinition* transferNucleus2;
-    G4double transferMass1;
-    G4double transferMass2;
     G4double origTransferMass1;
     G4double origTransferMass2;
     G4double bc;
@@ -105,8 +101,8 @@ private:
     G4int daughterZ;
     G4int daughterA;
     const G4BetaDecayType betaType;
-    G4IonTable* theIonTable;
-    CoulombFunctions* cf;
+    CoulombFunctions* cfTriton;
+    CoulombFunctions* cfNeutron;
 };
 #endif
 
